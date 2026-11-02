@@ -13,6 +13,7 @@ sends the display a standard network wake-up signal
 turns on by itself.
 
 - No app to install, no pairing, no admin password
+- No keyboard shortcuts, just press any key to wake up your monitor
 - Uses only tools built into macOS (bash, perl, pmset, ioreg)
 - Works on the lock screen
 - Ignores the Mac's own night-time wake-ups
