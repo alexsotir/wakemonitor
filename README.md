@@ -135,7 +135,7 @@ Running the installer again overwrites your changes.
 
 - **Turn the display on at startup.** It runs inside your user account, so it
   starts after you log in. Use the remote when you power on the Mac.
-- **Turn the display off.** It only wakes it.
+- **Turn the display off.** It only wakes it. Most monitors turn off automatically when idle.
 - **Reach displays on another network.** The wake signal is a local broadcast
   and doesn't cross subnets.
 - **Work with displays that don't support network wake.** Some TVs only accept
