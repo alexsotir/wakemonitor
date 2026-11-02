@@ -17,6 +17,7 @@ turns on by itself.
 - Uses only tools built into macOS (bash, perl, pmset, ioreg)
 - Works on the lock screen
 - Ignores the Mac's own night-time wake-ups
+- It works with any monitor or TV that supports Wake-On-Lan
 
 ## How it works
 
