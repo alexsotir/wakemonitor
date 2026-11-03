@@ -171,7 +171,8 @@ settings.
 - **Turn the display back on after you switched it off with its remote.** The
   Mac can't tell when that happens: to macOS the display is still connected
   and on, so there's nothing to react to. Turn it on with the remote, or lock
-  the screen or let the display sleep instead of using the remote.
+  the screen or let the display sleep instead of using the remote. 
+  This trade-off prevents the performance overhead of constantly polling while the Mac is awake.
 - **Turn the display off.** It only wakes it. Most monitors turn off automatically when idle.
 - **Reach displays on another network.** The wake signal is a local broadcast
   and doesn't cross subnets.
