@@ -137,33 +137,6 @@ bash install-wakemonitor.sh --version                  # downloaded vs installed
 bash install-wakemonitor.sh --uninstall                # remove everything
 ```
 
-### Settings
-
-The settings are at the top of `wakemonitor.sh`. Edit them in the downloaded
-folder before installing, or in the installed copy,
-`~/.wakemonitor/wakemonitor.sh`.
-
-| Setting | Default | Meaning |
-|---|---|---|
-| `CHECK_EVERY` | 2 | Seconds between checks while the display is on |
-| `WATCH_EVERY` | 1 | Seconds between checks while the display is off |
-| `SLEEP_GAP` | 10 | A longer gap between two checks means the Mac slept |
-| `LOCK_CHECK_MS` | 3000 | Check whether the screen is locked after this long without input (ms) |
-| `RECENT_INPUT_MS` | 15000 | After sleep: you woke the Mac if you pressed something this recently (ms) |
-| `POWER_CHECK_EVERY` | 30 | Seconds between "still plugged in?" checks |
-| `BATTERY_CHECK_EVERY` | 10 | On battery: seconds between "plugged in again?" checks |
-| `WAKE_ATTEMPTS` | 30 | How many times to send the signal, 1 second apart |
-| `LOG_LINES` | 200 | How many lines the log keeps (older ones are removed) |
-
-After editing the installed copy, restart WakeMonitor:
-
-```bash
-launchctl kickstart -k gui/$(id -u)/io.github.wakemonitor
-```
-
-Installing an update replaces the script, including your changes to the
-settings.
-
 ## What it doesn't do
 
 - **Turn the display on at startup.** It runs inside your user account, so it
