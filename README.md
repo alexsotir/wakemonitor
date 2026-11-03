@@ -66,23 +66,36 @@ Look in the display's network settings, usually under *About*, *Network status*
 or *Wi-Fi details*. Use the address of the connection it actually uses: the
 wireless one if it's on Wi-Fi, the wired one if it's on Ethernet.
 
-### 2. Test it
+### 2. Download
 
-Download `install-wakemonitor.sh`. Turn the display off with its remote, wait a
-few seconds, then run this in Terminal with your display's MAC address:
+On the [GitHub page](https://github.com/alexsotir/wakemonitor), click
+**Code → Download ZIP**. Your Mac unzips it to `~/Downloads/wakemonitor-main`.
+Open Terminal and go to that folder:
 
 ```bash
-bash ~/Downloads/install-wakemonitor.sh --test AA:BB:CC:DD:EE:FF
+cd ~/Downloads/wakemonitor-main
+```
+
+The folder contains two scripts: `install-wakemonitor.sh` (installs, tests and
+removes) and `wakemonitor.sh` (the script that runs in the background).
+
+### 3. Test it
+
+Turn the display off with its remote, wait a few seconds, then run this with
+your display's MAC address:
+
+```bash
+bash install-wakemonitor.sh --test AA:BB:CC:DD:EE:FF
 ```
 
 The display should turn on. If macOS asks whether Terminal can access the local
 network, click **Allow** and run it again. If the display stays off, check the
 network wake setting and the MAC address before going further.
 
-### 3. Install
+### 4. Install
 
 ```bash
-bash ~/Downloads/install-wakemonitor.sh AA:BB:CC:DD:EE:FF
+bash install-wakemonitor.sh AA:BB:CC:DD:EE:FF
 ```
 
 It prints `WakeMonitor <version> installed and running`. macOS shows a notification
@@ -90,7 +103,8 @@ that a background item was added (listed as "wakemonitor.sh"); leave it allowed.
 If macOS asks whether "wakemonitor.sh", "bash" or "perl" can access the local
 network, click **Allow**.
 
-That's it. It starts automatically every time you log in.
+That's it. It starts automatically every time you log in. You can delete the
+downloaded folder afterwards; download it again to update.
 
 ## Usage
 
@@ -116,16 +130,24 @@ The log keeps only the newest 200 lines. To clear it: `: > ~/Library/Logs/wakemo
 
 ### Commands
 
+Run these from the downloaded folder:
+
 ```bash
 bash install-wakemonitor.sh --test AA:BB:CC:DD:EE:FF   # send the wake signal once
 bash install-wakemonitor.sh AA:BB:CC:DD:EE:FF          # install or update
-bash install-wakemonitor.sh --version                  # installer vs installed version
+bash install-wakemonitor.sh --version                  # downloaded vs installed version
 bash install-wakemonitor.sh --uninstall                # remove everything
 ```
 
 ### Settings
 
-The settings are at the top of `~/.wakemonitor/wakemonitor.sh`:
+The defaults are at the top of `wakemonitor.sh`. To change one, put it in
+`~/.wakemonitor/settings` (create the file), one per line:
+
+```bash
+CHECK_EVERY=3
+WAKE_ATTEMPTS=30
+```
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -139,13 +161,13 @@ The settings are at the top of `~/.wakemonitor/wakemonitor.sh`:
 | `WAKE_ATTEMPTS` | 20 | How many times to send the signal, 1 second apart |
 | `LOG_LINES` | 200 | How many lines the log keeps (older ones are removed) |
 
-After editing, restart it:
+After editing the file, restart WakeMonitor:
 
 ```bash
 launchctl kickstart -k gui/$(id -u)/io.github.wakemonitor
 ```
 
-Running the installer again overwrites your changes.
+Updating keeps your settings file.
 
 ## What it doesn't do
 
@@ -176,8 +198,11 @@ Running the installer again overwrites your changes.
 | File | Purpose |
 |---|---|
 | `~/.wakemonitor/wakemonitor.sh` | The script that does the work |
+| `~/.wakemonitor/settings` | Your own settings, if you create it (kept on update) |
 | `~/Library/LaunchAgents/io.github.wakemonitor.plist` | Starts it at login and restarts it if it stops |
 | `~/Library/Logs/wakemonitor.log` | What it did and when |
+
+The launch agent passes your MAC address to the script at login.
 
 ## Troubleshooting
 
@@ -205,7 +230,7 @@ pmset -g log | grep -E "Entering Sleep|Wake from|Display is turned" | tail -20
 bash install-wakemonitor.sh --uninstall
 ```
 
-This stops it and deletes all three files.
+This stops it and deletes its files, including your settings file and the log.
 
 ## Tested on
 
