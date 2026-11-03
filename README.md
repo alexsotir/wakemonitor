@@ -69,13 +69,10 @@ wireless one if it's on Wi-Fi, the wired one if it's on Ethernet.
 
 ### 2. Download
 
-On the [GitHub page](https://github.com/alexsotir/wakemonitor), click
-**Code → Download ZIP**. Your Mac unzips it to `~/Downloads/wakemonitor-main`.
-Open Terminal and go to that folder:
-
-```bash
-cd ~/Downloads/wakemonitor-main
-```
+Download the latest release from the
+[Releases page](https://github.com/alexsotir/wakemonitor/releases): under
+**Assets**, click **Source code (zip)**. Your Mac unzips it into a folder. Open
+Terminal and navigate to that folder.
 
 The folder contains two scripts: `install-wakemonitor.sh` (installs, tests and
 removes) and `wakemonitor.sh` (the script that runs in the background).
@@ -105,7 +102,7 @@ If macOS asks whether "wakemonitor.sh", "bash" or "perl" can access the local
 network, click **Allow**.
 
 That's it. It starts automatically every time you log in. You can delete the
-downloaded folder afterwards; download it again to update.
+downloaded folder afterwards; download the latest release again to update.
 
 ## Usage
 

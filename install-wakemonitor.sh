@@ -49,7 +49,7 @@ require_mac_address() {
 require_source() {
   if [ ! -f "$SOURCE" ]; then
     echo "wakemonitor.sh not found next to the installer ($SOURCE)." >&2
-    echo "Download the whole folder (GitHub: Code -> Download ZIP) and run the installer from it." >&2
+    echo "Download the whole release (GitHub: Releases -> Source code (zip)) and run the installer from its folder." >&2
     exit 1
   fi
 }
