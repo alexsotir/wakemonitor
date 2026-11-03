@@ -14,7 +14,7 @@
 #   ~/Library/LaunchAgents/io.github.wakemonitor.plist  starts it at login, restarts it if it stops
 #   ~/Library/Logs/wakemonitor.log                    what it did and when
 
-VERSION="1.1.1"               # bump this when you change anything below
+VERSION="1.2.0"               # bump this when you change anything below
 
 LABEL="io.github.wakemonitor"
 INSTALL_DIR="$HOME/.wakemonitor"
@@ -96,16 +96,18 @@ write_script() {
 # Some displays (smart monitors and TVs) ignore the Mac's video signal once
 # they have switched themselves off, but respond to a network wake-up signal
 # (Wake-on-LAN). This script sends that signal when you return after the
-# display was off:
+# display was off.
 #
-#   1. After sleep: as soon as the power log says YOU woke the Mac
-#      (key press, trackpad).
-#   2. After the display went off without sleep (power button, display sleep):
-#      when you touch the keyboard or trackpad after a pause and the power log
-#      shows the display was turned off in the meantime.
+# While the display is on it only notices when the display goes off:
+#   - the Mac slept (a long gap between two checks)
+#   - the screen locked (power button, Ctrl-Cmd-Q), checked once per pause
+#   - you were inactive longer than the display-sleep setting
+# Then it checks every second for your first key press or trackpad touch and
+# sends the signal. The Mac's own night-time wake-ups are ignored: the
+# graphics stay off during those.
 #
-# The Mac's own wake-ups (night maintenance, notifications) are ignored until
-# you actually press something.
+# On battery it does nothing but check whether it's plugged in again: a
+# laptop on battery isn't running a closed-lid setup with the display.
 #
 # Started at login by install-wakemonitor.sh. Log: ~/Library/Logs/wakemonitor.log
 # Run with --test to send the wake signal 3 times and exit.
@@ -115,9 +117,13 @@ VERSION="__VERSION__"           # set by install-wakemonitor.sh
 # ---- Settings ----------------------------------------------------------------
 
 MONITOR_MAC="__MONITOR_MAC__"   # MAC address of the display's network connection
-CHECK_EVERY=2                   # seconds between checks
+CHECK_EVERY=2                   # seconds between checks while the display is on
+WATCH_EVERY=1                   # seconds between checks while the display is off
 SLEEP_GAP=10                    # a longer gap between two checks = the Mac slept
-PAUSE_MS=30000                  # only read the power log after a pause this long
+LOCK_CHECK_MS=10000             # check whether the screen is locked after a pause this long
+RECENT_INPUT_MS=15000           # after a sleep: you woke it if you pressed something this recently
+POWER_CHECK_EVERY=30            # seconds between "still plugged in?" checks
+BATTERY_CHECK_EVERY=10          # on battery: seconds between "plugged in again?" checks
 WAKE_ATTEMPTS=20                # send the signal this many times, 1 second apart
 LOG_FILE="$HOME/Library/Logs/wakemonitor.log"
 LOG_LINES=200                   # keep only this many lines in the log
@@ -147,54 +153,31 @@ idle_ms() {
   echo "${ms:-0}"
 }
 
-# Read the power log once (it's long, so it's slow) and set:
-#   newest_wake         newest "Wake" entry ("DarkWake" entries don't count)
-#   newest_display_off  newest "Display is turned off" entry
-read_power_log() {
-  { IFS= read -r newest_wake; IFS= read -r newest_display_off; } < <(
-    pmset -g log 2>/dev/null | awk '
-      /^[0-9-]+ [0-9:]+ [+-][0-9]+ Wake[ \t]/ { wake = $0 }
-      /Display is turned off/                { off = $0 }
-      END { print wake; print off }')
+# Is the screen locked?
+screen_locked() {
+  ioreg -n Root -d 1 2>/dev/null | grep -q '"CGSSessionScreenIsLocked"=Yes'
 }
 
-
-# ---- Deciding --------------------------------------------------------------------
-
-# After a sleep: wait up to 8 seconds for the new Wake entry,
-# then succeed only if it says the wake was caused by you.
-woken_by_user() {
-  local entry reason tries=0
-
-  while [ $tries -lt 8 ]; do
-    read_power_log
-    entry=$newest_wake
-    if [ -n "$entry" ] && [ "$entry" != "$seen_wake" ]; then
-      seen_wake=$entry
-      reason=${entry#*due to }
-      reason=${reason%% Using*}
-      log "Mac woke (reason: $reason)"
-      case "$entry" in
-        *"HID Activity"* | *UserActivity* | *LidOpen* | *PowerButton* | *PwrBtn*)
-          return 0 ;;
-        *)
-          return 1 ;;
-      esac
-    fi
-    sleep 1
-    tries=$((tries + 1))
-  done
-
-  log "Mac woke briefly by itself"
-  return 1
+# Is the Mac running on battery? (Desktop Macs never are.)
+on_battery() {
+  pmset -g ps 2>/dev/null | head -1 | grep -q "'Battery Power'"
 }
 
-# After a pause: has the display been turned off since we last looked?
-display_was_off() {
-  read_power_log
-  [ "$newest_display_off" = "$seen_display_off" ] && return 1
-  seen_display_off=$newest_display_off
-  return 0
+# The display-sleep setting in milliseconds (0 = never).
+display_sleep_ms() {
+  local ms
+  ms=$(pmset -g 2>/dev/null | awk '$1 == "displaysleep" { print $2 * 60000; exit }')
+  echo "${ms:-0}"
+}
+
+# Is the Mac fully awake? During its own night-time wake-ups ("dark wakes")
+# the graphics stay off.
+fully_awake() {
+  case "$(pmset -g systemstate 2>/dev/null)" in
+    *Capabilities*Graphics*) return 0 ;;
+    *Capabilities*)          return 1 ;;
+    *)                       return 0 ;;   # unexpected output: assume awake
+  esac
 }
 
 
@@ -231,10 +214,13 @@ send_wake_signal() {
 # ---- Main loop -------------------------------------------------------------------
 #
 # What the loop remembers between checks:
-#   seen_wake          newest Wake entry already handled
-#   seen_display_off   newest "display off" entry already handled
-#   check_next_input   1 after the Mac woke by itself: check at your next
-#                      key press even if there was no pause
+#   display_off        1 = the display went off: watch for your return
+#   just_woke          1 = the Mac just woke from sleep, and it isn't known
+#                      yet whether you woke it
+#   lock_checked       1 = the lock was already checked during this pause
+#   paused             1 = on battery
+#   slept_on_battery   1 = the Mac slept while paused
+#   display_sleep      the display-sleep setting (ms), refreshed with the power check
 #   prev_idle          idle time at the previous check (it drops when you
 #                      touch the keyboard or trackpad)
 #   prev_check         time of the previous check (a big jump = the Mac slept)
@@ -245,41 +231,87 @@ if [ "$1" = "--test" ]; then
 fi
 
 log "started (version $VERSION)"
-read_power_log
-seen_wake=$newest_wake
-seen_display_off=$newest_display_off
-check_next_input=0
+display_off=0
+just_woke=0
+lock_checked=0
+paused=0
+slept_on_battery=0
+display_sleep=$(display_sleep_ms)
+next_power_check=$SECONDS
 prev_idle=$(idle_ms)
 prev_check=$SECONDS
 
 while true; do
+  # Still plugged in? On battery, only check again later.
+  if [ $SECONDS -ge $next_power_check ]; then
+    if on_battery; then
+      if [ $paused -eq 0 ]; then
+        log "on battery -> paused"
+        paused=1
+      fi
+      before=$SECONDS
+      sleep $BATTERY_CHECK_EVERY
+      [ $((SECONDS - before)) -gt $((BATTERY_CHECK_EVERY + SLEEP_GAP)) ] && slept_on_battery=1
+      continue
+    fi
+    if [ $paused -eq 1 ]; then
+      log "plugged in -> resumed"
+      paused=0
+      display_off=$slept_on_battery              # it slept: the display was off
+      just_woke=$slept_on_battery
+      slept_on_battery=0
+      prev_idle=$(idle_ms)
+      prev_check=$SECONDS
+    fi
+    display_sleep=$(display_sleep_ms)
+    next_power_check=$((SECONDS + POWER_CHECK_EVERY))
+  fi
+
   idle=$(idle_ms)
 
   if [ $((SECONDS - prev_check)) -gt $SLEEP_GAP ]; then
-    # Case 1: the Mac was asleep.
-    if woken_by_user; then
-      seen_display_off=$newest_display_off           # handled by this wake
-      send_wake_signal
-      check_next_input=0
-    else
-      check_next_input=1                              # it woke itself; wait for you
-    fi
-    idle=$(idle_ms)
+    display_off=1                                # the Mac slept: the display was off
+    just_woke=1
+  fi
 
-  elif [ "$idle" -lt "$prev_idle" ] &&
-       { [ "$prev_idle" -ge $PAUSE_MS ] || [ $check_next_input -eq 1 ]; }; then
-    # Case 2: you're back after a pause (or after the Mac woke itself).
-    if display_was_off; then
-      log "display was off"
+  if [ $display_off -eq 1 ]; then
+    # The display is off: watch for your return.
+    if [ $just_woke -eq 1 ] && fully_awake; then
+      just_woke=0
+      if [ "$idle" -lt $RECENT_INPUT_MS ]; then  # you woke it
+        log "Mac woke up"
+        send_wake_signal
+        display_off=0
+      fi                                         # otherwise: keep watching
+    elif [ "$idle" -lt "$prev_idle" ]; then      # you pressed something
       send_wake_signal
+      display_off=0
     fi
-    check_next_input=0
-    idle=$(idle_ms)
+    if [ $display_off -eq 0 ]; then
+      lock_checked=0
+      idle=$(idle_ms)
+    fi
+
+  else
+    # The display is on: has it gone off?
+    if [ "$idle" -lt "$prev_idle" ]; then
+      lock_checked=0                             # you're active: a new pause starts
+    elif [ $lock_checked -eq 0 ] && [ "$idle" -ge $LOCK_CHECK_MS ]; then
+      lock_checked=1
+      if screen_locked; then
+        log "screen locked"
+        display_off=1
+      fi
+    fi
+    if [ $display_off -eq 0 ] && [ "$display_sleep" -gt 0 ] && [ "$idle" -ge "$display_sleep" ]; then
+      log "display went to sleep"
+      display_off=1
+    fi
   fi
 
   prev_idle=$idle
   prev_check=$SECONDS
-  sleep $CHECK_EVERY
+  if [ $display_off -eq 1 ]; then sleep $WATCH_EVERY; else sleep $CHECK_EVERY; fi
 done
 SCRIPT_END
 }

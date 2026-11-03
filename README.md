@@ -21,16 +21,24 @@ turns on by itself.
 
 ## How it works
 
-A small script runs in the background and checks every 2 seconds:
+A small script runs in the background. While the display is on, it only
+checks every 2 seconds whether the display has gone off:
 
-1. **After sleep:** when the Mac wakes, it reads the reason from macOS's power
-   log. If *you* woke it (a key press or the trackpad), it sends the wake
-   signal straight away.
-2. **After the display went off without sleep** (power button, display sleep):
-   when you touch the keyboard or trackpad after a pause, it checks the power
-   log. If the display was turned off in the meantime, it sends the wake signal.
-3. **The Mac's own wake-ups** (night maintenance, notifications) are ignored
-   until you actually press something.
+- **The Mac slept**
+- **The screen locked** (power button, Ctrl-Cmd-Q). It checks this once each
+  time you've been inactive for 10 seconds.
+- **You were inactive longer than your display-sleep setting**
+
+Once the display is off, it checks every second for your first key press or
+trackpad touch and sends the wake signal. After sleep, if you woke the Mac, it
+sends it straight away.
+
+**The Mac's own wake-ups** (night maintenance, Power Nap) are ignored: during
+those, macOS keeps the graphics off, and nobody presses anything.
+
+**On battery** it pauses and only checks every 10 seconds whether the Mac is
+plugged in again. A Mac on battery is a laptop that isn't running with its lid
+closed and the display attached.
 
 The signal is repeated for 20 seconds, because Wi-Fi takes a few seconds to
 reconnect after a wake.
@@ -98,10 +106,11 @@ cat ~/Library/Logs/wakemonitor.log
 | Log line | Meaning |
 |---|---|
 | `started (version <version>)` | The script started (at login or after an update). |
-| `Mac woke (reason: HID Activity)` | You woke the Mac. Other reasons you may see: `UserActivity Assertion` (also you), `Notification` (the Mac woke itself). |
-| `Mac woke briefly by itself` | A night-time maintenance wake. Ignored. |
-| `display was off` | You came back after the display had been turned off without sleep. |
+| `screen locked` | The screen was locked (for example with the power button); it now watches for your return. |
+| `display went to sleep` | You were inactive longer than the display-sleep setting; it now watches for your return. |
+| `Mac woke up` | You woke the Mac from sleep. |
 | `you're back -> sending wake signal` | The wake signal was sent. |
+| `on battery -> paused` / `plugged in -> resumed` | It pauses while on battery. |
 
 The log keeps only the newest 200 lines. To clear it: `: > ~/Library/Logs/wakemonitor.log`
 
@@ -120,9 +129,13 @@ The settings are at the top of `~/.wakemonitor/wakemonitor.sh`:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `CHECK_EVERY` | 2 | Seconds between checks |
+| `CHECK_EVERY` | 2 | Seconds between checks while the display is on |
+| `WATCH_EVERY` | 1 | Seconds between checks while the display is off |
 | `SLEEP_GAP` | 10 | A longer gap between two checks means the Mac slept |
-| `PAUSE_MS` | 30000 | Only read the power log after a pause this long (ms) |
+| `LOCK_CHECK_MS` | 10000 | Check whether the screen is locked after this long without input (ms) |
+| `RECENT_INPUT_MS` | 15000 | After sleep: you woke the Mac if you pressed something this recently (ms) |
+| `POWER_CHECK_EVERY` | 30 | Seconds between "still plugged in?" checks |
+| `BATTERY_CHECK_EVERY` | 10 | On battery: seconds between "plugged in again?" checks |
 | `WAKE_ATTEMPTS` | 20 | How many times to send the signal, 1 second apart |
 | `LOG_LINES` | 200 | How many lines the log keeps (older ones are removed) |
 
@@ -141,18 +154,22 @@ Running the installer again overwrites your changes.
 - **Turn the display off.** It only wakes it. Most monitors turn off automatically when idle.
 - **Reach displays on another network.** The wake signal is a local broadcast
   and doesn't cross subnets.
+- **Run on battery.** It pauses until the Mac is plugged in again, so a laptop
+  on battery with the lid open and a TV as an extra screen won't get the signal.
 - **Work with displays that don't support network wake.** Some TVs only accept
   it over Ethernet, not Wi-Fi. Regular monitors without a network connection
   normally wake from the Mac's video signal anyway, so they don't need this.
 
 ## Resources and privacy
 
-- Each check is a tiny system query. The power log is read only when you come
-  back after a pause of 30+ seconds. Nothing runs while the Mac is asleep.
+- While the display is on: one tiny system query every 2 seconds, one lock
+  check per pause of 10+ seconds, and a power-source check every 30 seconds.
+  Nothing heavier runs while you work. Nothing runs while the Mac is asleep.
 - No internet access. The only network traffic is the wake-up packet, sent to
   your local network.
-- No admin rights. It reads the time since your last key press and macOS's
-  power log, and writes its own log file.
+- No admin rights. It reads the time since your last key press, whether the
+  screen is locked, the power source and display-sleep setting, and writes its
+  own log file.
 
 ### Files
 
