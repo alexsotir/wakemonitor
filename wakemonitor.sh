@@ -23,27 +23,24 @@
 #   wakemonitor.sh --test AA:BB:CC:DD:EE:FF   send the wake signal 3 times and exit
 #
 # Log: ~/Library/Logs/wakemonitor.log
-# To change a setting below, put it in ~/.wakemonitor/settings (for example
-# CHECK_EVERY=3). That file is loaded at start and kept when you update.
+# To change a setting, edit it below. Installing an update replaces this file.
 
-VERSION="1.3.0"                 # bump this when you change anything
+VERSION="1.3.3"                 # bump this when you change anything
 
 # ---- Settings ----------------------------------------------------------------
 
 CHECK_EVERY=2                   # seconds between checks while the display is on
 WATCH_EVERY=1                   # seconds between checks while the display is off
 SLEEP_GAP=10                    # a longer gap between two checks = the Mac slept
-LOCK_CHECK_MS=10000             # check whether the screen is locked after a pause this long
+LOCK_CHECK_MS=3000              # check whether the screen is locked after a pause this long
+                                # (short, so a key press while the display is still
+                                # switching off is already noticed)
 RECENT_INPUT_MS=15000           # after a sleep: you woke it if you pressed something this recently
 POWER_CHECK_EVERY=30            # seconds between "still plugged in?" checks
 BATTERY_CHECK_EVERY=10          # on battery: seconds between "plugged in again?" checks
-WAKE_ATTEMPTS=20                # send the signal this many times, 1 second apart
+WAKE_ATTEMPTS=30                # send the signal this many times, 1 second apart
 LOG_FILE="$HOME/Library/Logs/wakemonitor.log"
 LOG_LINES=200                   # keep only this many lines in the log
-SETTINGS_FILE="$HOME/.wakemonitor/settings"
-
-# shellcheck source=/dev/null
-[ -f "$SETTINGS_FILE" ] && . "$SETTINGS_FILE"
 
 export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 
@@ -121,7 +118,9 @@ broadcast_magic_packet() {
   ' "$MONITOR_MAC" "$1"
 }
 
-# Send it repeatedly, in case Wi-Fi is still reconnecting after a wake.
+# Send it repeatedly: Wi-Fi may still be reconnecting after a wake, and a
+# display that is still switching itself off ignores the signal until it's
+# fully in standby.
 send_wake_signal() {
   log "you're back -> sending wake signal"
   broadcast_magic_packet "$WAKE_ATTEMPTS" 2>/dev/null

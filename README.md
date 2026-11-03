@@ -26,7 +26,7 @@ checks every 2 seconds whether the display has gone off:
 
 - **The Mac slept**
 - **The screen locked** (power button, Ctrl-Cmd-Q). It checks this once each
-  time you've been inactive for 10 seconds.
+  time you've been inactive for 3 seconds.
 - **You were inactive longer than your display-sleep setting**
 
 Once the display is off, it checks every second for your first key press or
@@ -40,8 +40,9 @@ those, macOS keeps the graphics off, and nobody presses anything.
 plugged in again. A Mac on battery is a laptop that isn't running with its lid
 closed and the display attached.
 
-The signal is repeated for 20 seconds, because Wi-Fi takes a few seconds to
-reconnect after a wake.
+The signal is repeated for 30 seconds. Wi-Fi takes a few seconds to reconnect
+after a wake, and a display that is still switching itself off ignores the
+signal until it's fully in standby.
 
 ## Requirements
 
@@ -141,38 +142,39 @@ bash install-wakemonitor.sh --uninstall                # remove everything
 
 ### Settings
 
-The defaults are at the top of `wakemonitor.sh`. To change one, put it in
-`~/.wakemonitor/settings` (create the file), one per line:
-
-```bash
-CHECK_EVERY=3
-WAKE_ATTEMPTS=30
-```
+The settings are at the top of `wakemonitor.sh`. Edit them in the downloaded
+folder before installing, or in the installed copy,
+`~/.wakemonitor/wakemonitor.sh`.
 
 | Setting | Default | Meaning |
 |---|---|---|
 | `CHECK_EVERY` | 2 | Seconds between checks while the display is on |
 | `WATCH_EVERY` | 1 | Seconds between checks while the display is off |
 | `SLEEP_GAP` | 10 | A longer gap between two checks means the Mac slept |
-| `LOCK_CHECK_MS` | 10000 | Check whether the screen is locked after this long without input (ms) |
+| `LOCK_CHECK_MS` | 3000 | Check whether the screen is locked after this long without input (ms) |
 | `RECENT_INPUT_MS` | 15000 | After sleep: you woke the Mac if you pressed something this recently (ms) |
 | `POWER_CHECK_EVERY` | 30 | Seconds between "still plugged in?" checks |
 | `BATTERY_CHECK_EVERY` | 10 | On battery: seconds between "plugged in again?" checks |
-| `WAKE_ATTEMPTS` | 20 | How many times to send the signal, 1 second apart |
+| `WAKE_ATTEMPTS` | 30 | How many times to send the signal, 1 second apart |
 | `LOG_LINES` | 200 | How many lines the log keeps (older ones are removed) |
 
-After editing the file, restart WakeMonitor:
+After editing the installed copy, restart WakeMonitor:
 
 ```bash
 launchctl kickstart -k gui/$(id -u)/io.github.wakemonitor
 ```
 
-Updating keeps your settings file.
+Installing an update replaces the script, including your changes to the
+settings.
 
 ## What it doesn't do
 
 - **Turn the display on at startup.** It runs inside your user account, so it
   starts after you log in. Use the remote when you power on the Mac.
+- **Turn the display back on after you switched it off with its remote.** The
+  Mac can't tell when that happens: to macOS the display is still connected
+  and on, so there's nothing to react to. Turn it on with the remote, or lock
+  the screen or let the display sleep instead of using the remote.
 - **Turn the display off.** It only wakes it. Most monitors turn off automatically when idle.
 - **Reach displays on another network.** The wake signal is a local broadcast
   and doesn't cross subnets.
@@ -185,7 +187,7 @@ Updating keeps your settings file.
 ## Resources and privacy
 
 - While the display is on: one tiny system query every 2 seconds, one lock
-  check per pause of 10+ seconds, and a power-source check every 30 seconds.
+  check per pause of 3+ seconds, and a power-source check every 30 seconds.
   Nothing heavier runs while you work. Nothing runs while the Mac is asleep.
 - No internet access. The only network traffic is the wake-up packet, sent to
   your local network.
@@ -198,7 +200,6 @@ Updating keeps your settings file.
 | File | Purpose |
 |---|---|
 | `~/.wakemonitor/wakemonitor.sh` | The script that does the work |
-| `~/.wakemonitor/settings` | Your own settings, if you create it (kept on update) |
 | `~/Library/LaunchAgents/io.github.wakemonitor.plist` | Starts it at login and restarts it if it stops |
 | `~/Library/Logs/wakemonitor.log` | What it did and when |
 
@@ -230,7 +231,7 @@ pmset -g log | grep -E "Entering Sleep|Wake from|Display is turned" | tail -20
 bash install-wakemonitor.sh --uninstall
 ```
 
-This stops it and deletes its files, including your settings file and the log.
+This stops it and deletes its files, including the log.
 
 ## Tested on
 

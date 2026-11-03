@@ -14,7 +14,6 @@
 #   ~/.wakemonitor/wakemonitor.sh                     the script that does the work
 #   ~/Library/LaunchAgents/io.github.wakemonitor.plist  starts it at login, restarts it if it stops
 #   ~/Library/Logs/wakemonitor.log                    what it did and when
-# Your own ~/.wakemonitor/settings, if you create one, is kept on update.
 
 SOURCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/wakemonitor.sh"
 
