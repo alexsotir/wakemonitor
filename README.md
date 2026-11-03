@@ -77,7 +77,7 @@ network wake setting and the MAC address before going further.
 bash ~/Downloads/install-wakemonitor.sh AA:BB:CC:DD:EE:FF
 ```
 
-It prints `WakeMonitor 1.0.1 installed and running`. macOS shows a notification
+It prints `WakeMonitor <version> installed and running`. macOS shows a notification
 that a background item was added (listed as "wakemonitor.sh"); leave it allowed.
 If macOS asks whether "wakemonitor.sh", "bash" or "perl" can access the local
 network, click **Allow**.
@@ -97,13 +97,13 @@ cat ~/Library/Logs/wakemonitor.log
 
 | Log line | Meaning |
 |---|---|
-| `started (version 1.0.1)` | The script started (at login or after an update). |
+| `started (version <version>)` | The script started (at login or after an update). |
 | `Mac woke (reason: HID Activity)` | You woke the Mac. Other reasons you may see: `UserActivity Assertion` (also you), `Notification` (the Mac woke itself). |
 | `Mac woke briefly by itself` | A night-time maintenance wake. Ignored. |
 | `display was off` | You came back after the display had been turned off without sleep. |
 | `you're back -> sending wake signal` | The wake signal was sent. |
 
-To clear the log: `: > ~/Library/Logs/wakemonitor.log`
+The log keeps only the newest 200 lines. To clear it: `: > ~/Library/Logs/wakemonitor.log`
 
 ### Commands
 
@@ -122,8 +122,9 @@ The settings are at the top of `~/.wakemonitor/wakemonitor.sh`:
 |---|---|---|
 | `CHECK_EVERY` | 2 | Seconds between checks |
 | `SLEEP_GAP` | 10 | A longer gap between two checks means the Mac slept |
-| `PAUSE_MS` | 5000 | Only read the power log after a pause this long (ms) |
+| `PAUSE_MS` | 30000 | Only read the power log after a pause this long (ms) |
 | `WAKE_ATTEMPTS` | 20 | How many times to send the signal, 1 second apart |
+| `LOG_LINES` | 200 | How many lines the log keeps (older ones are removed) |
 
 After editing, restart it:
 
@@ -147,7 +148,7 @@ Running the installer again overwrites your changes.
 ## Resources and privacy
 
 - Each check is a tiny system query. The power log is read only when you come
-  back after a pause of 5+ seconds. Nothing runs while the Mac is asleep.
+  back after a pause of 30+ seconds. Nothing runs while the Mac is asleep.
 - No internet access. The only network traffic is the wake-up packet, sent to
   your local network.
 - No admin rights. It reads the time since your last key press and macOS's
