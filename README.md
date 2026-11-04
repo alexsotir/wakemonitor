@@ -16,7 +16,7 @@ WakeMonitor is built to be **lightweight**: it should never cost you battery
 life or performance, and it uses **no third-party libraries or dependencies**.
 
 - Lightweight: a tiny script that sleeps most of the time and does almost
-  nothing while you work (see [Resources and privacy](#resources-and-privacy))
+  nothing while you work
 - Battery-friendly: it pauses itself on battery and does nothing while the Mac
   is asleep
 - No third-party libraries, frameworks or package managers: only tools built
@@ -29,28 +29,13 @@ life or performance, and it uses **no third-party libraries or dependencies**.
 
 ## How it works
 
-A small script runs in the background. While the display is on, it only
-checks every 2 seconds whether the display has gone off:
+A small script runs in the background and notices when the display goes off:
+the Mac slept, the screen locked, or the display went to sleep. When you come
+back and press a key or touch the trackpad, it sends the wake signal and the
+display turns on.
 
-- **The Mac slept**
-- **The screen locked** (power button, Ctrl-Cmd-Q). It checks this once each
-  time you've been inactive for 3 seconds.
-- **You were inactive longer than your display-sleep setting**
-
-Once the display is off, it checks every second for your first key press or
-trackpad touch and sends the wake signal. After sleep, if you woke the Mac, it
-sends it straight away.
-
-**The Mac's own wake-ups** (night maintenance, Power Nap) are ignored: during
-those, macOS keeps the graphics off, and nobody presses anything.
-
-**On battery** it pauses and only checks every 10 seconds whether the Mac is
-plugged in again. A Mac on battery is a laptop that isn't running with its lid
-closed and the display attached.
-
-The signal is repeated for 30 seconds. Wi-Fi takes a few seconds to reconnect
-after a wake, and a display that is still switching itself off ignores the
-signal until it's fully in standby.
+It ignores the Mac's own night-time wake-ups, and it pauses while the Mac is on
+battery.
 
 ## Requirements
 
@@ -165,9 +150,6 @@ bash install-wakemonitor.sh --uninstall                # remove everything
 
 ## Resources and privacy
 
-- While the display is on: one tiny system query every 2 seconds, one lock
-  check per pause of 3+ seconds, and a power-source check every 30 seconds.
-  Nothing heavier runs while you work. Nothing runs while the Mac is asleep.
 - No internet access. The only network traffic is the wake-up packet, sent to
   your local network.
 - No admin rights. It reads the time since your last key press, whether the
