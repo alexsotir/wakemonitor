@@ -25,7 +25,7 @@
 # Log: ~/Library/Logs/wakemonitor.log
 # To change a setting, edit it below. Installing an update replaces this file.
 
-VERSION="1.3.3"                 # bump this when you change anything
+VERSION="1.3.4"                 # bump this when you change anything
 
 # ---- Settings ----------------------------------------------------------------
 
@@ -38,7 +38,7 @@ LOCK_CHECK_MS=3000              # check whether the screen is locked after a pau
 RECENT_INPUT_MS=15000           # after a sleep: you woke it if you pressed something this recently
 POWER_CHECK_EVERY=30            # seconds between "still plugged in?" checks
 BATTERY_CHECK_EVERY=10          # on battery: seconds between "plugged in again?" checks
-WAKE_ATTEMPTS=30                # send the signal this many times, 1 second apart
+WAKE_ATTEMPTS=3                 # packets that must actually go out, 1 second apart
 LOG_FILE="$HOME/Library/Logs/wakemonitor.log"
 LOG_LINES=200                   # keep only this many lines in the log
 
@@ -97,33 +97,35 @@ fully_awake() {
 
 # ---- Acting -----------------------------------------------------------------------
 
-# Broadcast the Wake-on-LAN "magic packet" $1 times, 1 second apart.
-# A failed send (Wi-Fi still reconnecting) is reported and retried next second.
-# Fails only if no packet at all could be sent.
+# Broadcast the Wake-on-LAN "magic packet" once a second until $1 packets
+# actually went out, for at most $2 seconds. A failed send (Wi-Fi still
+# reconnecting) doesn't count and is retried next second. Fails only if no
+# packet at all went out.
 broadcast_magic_packet() {
   perl -MSocket -e '
-    my ($mac, $times) = @ARGV;
+    my ($mac, $times, $max_secs) = @ARGV;
     $mac =~ s/[:-]//g;
     # magic packet: 6 bytes of 0xFF, then the MAC address 16 times
     my $packet = ("\xff" x 6) . (pack("H12", $mac) x 16);
     socket(my $sock, PF_INET, SOCK_DGRAM, getprotobyname("udp")) or die "socket: $!\n";
     setsockopt($sock, SOL_SOCKET, SO_BROADCAST, 1) or die "setsockopt: $!\n";
-    my $sent = 0;
-    for my $i (1 .. $times) {
+    my ($sent, $start) = (0, time);
+    while (1) {
       if (send($sock, $packet, 0, sockaddr_in(9, INADDR_BROADCAST))) { $sent++ }
       else { warn "send: $!\n" }
-      sleep 1 if $i < $times;
+      last if $sent >= $times || time - $start >= $max_secs;
+      sleep 1;
     }
     exit($sent ? 0 : 1);
-  ' "$MONITOR_MAC" "$1"
+  ' "$MONITOR_MAC" "$1" "$2"
 }
 
-# Send it repeatedly: Wi-Fi may still be reconnecting after a wake, and a
-# display that is still switching itself off ignores the signal until it's
-# fully in standby.
+# Send a few packets: a broadcast isn't confirmed, so one can get lost. A
+# display that is still switching itself off ignores them; then the next key
+# press after it's fully off sends again (the lock check re-arms the watch).
 send_wake_signal() {
   log "you're back -> sending wake signal"
-  broadcast_magic_packet "$WAKE_ATTEMPTS" 2>/dev/null
+  broadcast_magic_packet "$WAKE_ATTEMPTS" $((WAKE_ATTEMPTS + 30)) 2>/dev/null   # gives the network 30 s to come back
 }
 
 
@@ -143,7 +145,7 @@ send_wake_signal() {
 
 if [ "$1" = "--test" ]; then
   MONITOR_MAC=$2
-  broadcast_magic_packet 3
+  broadcast_magic_packet 3 3
   exit
 fi
 
