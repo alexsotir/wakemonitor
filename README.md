@@ -12,9 +12,17 @@ sends the display a standard network wake-up signal
 ([Wake-on-LAN](https://en.wikipedia.org/wiki/Wake-on-LAN)), and the display
 turns on by itself.
 
+WakeMonitor is built to be **lightweight**: it should never cost you battery
+life or performance, and it uses **no third-party libraries or dependencies**.
+
+- Lightweight: a tiny script that sleeps most of the time and does almost
+  nothing while you work (see [Resources and privacy](#resources-and-privacy))
+- Battery-friendly: it pauses itself on battery and does nothing while the Mac
+  is asleep
+- No third-party libraries, frameworks or package managers: only tools built
+  into macOS (bash, perl, pmset, ioreg)
 - No app to install, no pairing, no admin password
 - No keyboard shortcuts, just press any key to wake up your monitor
-- Uses only tools built into macOS (bash, perl, pmset, ioreg)
 - Works on the lock screen
 - Ignores the Mac's own night-time wake-ups
 - It works with any monitor or TV that supports Wake-On-Lan
@@ -46,7 +54,7 @@ signal until it's fully in standby.
 
 ## Requirements
 
-- A Mac running macOS (tested on macOS 26 Tahoe).
+- A Mac running macOS (tested on macOS 27 Golden Gate).
 - A display that can be **turned on over the network**, with that option
   enabled. The setting has a different name on each brand:
 
@@ -208,7 +216,7 @@ This stops it and deletes its files, including the log.
 
 | Display | Connection | Mac | macOS |
 |---|---|---|---|
-| LG UltraGear 32G810SA (webOS 24) | Wi-Fi | MacBook Air M4, lid closed | 26 Tahoe |
+| LG UltraGear 32G810SA (webOS 24) | Wi-Fi | MacBook Air M4, lid closed | 27 Golden Gate |
 
 Works with your display? Please open an issue with the model, how it's
 connected (Wi-Fi or Ethernet) and your macOS version, so it can be added here.
